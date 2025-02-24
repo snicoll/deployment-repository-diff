@@ -6,8 +6,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import net.nicoll.deployment.diff.PomDiffer.PomDiff;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.eclipse.aether.graph.Dependency;
 
 import org.springframework.util.function.ThrowingFunction;
 
@@ -15,16 +17,16 @@ class DeploymentDiffer {
 
 	private static final Log logger = LogFactory.getLog(DeploymentDiffer.class);
 
-	private final Deployment deployment;
+	private final GroupDeployment groupDeployment;
 
-	DeploymentDiffer(Deployment deployment) {
-		this.deployment = deployment;
+	DeploymentDiffer(GroupDeployment groupDeployment) {
+		this.groupDeployment = groupDeployment;
 	}
 
 	public void diff() throws IOException {
-		logger.info("Diffing %s from '%s' against '%s'".formatted(this.deployment.version(),
-				this.deployment.leftDirectory(), this.deployment.rightDirectory()));
-		List<ModuleDiff> moduleDiffs = diffModules(module -> new ModuleDiffer(this.deployment, module).diff());
+		logger.info("Diffing %s from '%s' against '%s'".formatted(this.groupDeployment.version(),
+				this.groupDeployment.leftDirectory(), this.groupDeployment.rightDirectory()));
+		List<ModuleDiff> moduleDiffs = diffModules(module -> new ModuleDiffer(this.groupDeployment, module).diff());
 		moduleDiffs.forEach(this::logModuleDiff);
 	}
 
@@ -36,24 +38,43 @@ class DeploymentDiffer {
 		else {
 			StringBuilder message = new StringBuilder("Diff result for %s:".formatted(moduleName));
 			if (!moduleDiff.onlyInRight().isEmpty()) {
-				message.append("%n\tOnly in %s:%n\t\t".formatted(this.deployment.rightName()));
+				message.append("%n\tOnly in %s:%n\t\t".formatted(this.groupDeployment.rightName()));
 				message.append(String.join("%n\t\t".formatted(), moduleDiff.onlyInRight()));
 			}
 			if (!moduleDiff.onlyInLeft().isEmpty()) {
-				message.append("%n\tOnly in %s:%n\t\t".formatted(this.deployment.leftName()));
+				message.append("%n\tOnly in %s:%n\t\t".formatted(this.groupDeployment.leftName()));
 				message.append(String.join("%n\t\t".formatted(), moduleDiff.onlyInLeft()));
+			}
+			PomDiff pomDiff = moduleDiff.pomDiff();
+			if (pomDiff != null && !pomDiff.hasSameEntries()) {
+				if (!pomDiff.onlyInRight().isEmpty()) {
+					message.append("%n\tDependencies only in %s:%n\t\t".formatted(this.groupDeployment.rightName()));
+					message.append(String.join("%n\t\t".formatted(),
+							pomDiff.onlyInRight().stream().map(this::toString).toList()));
+				}
+				if (!pomDiff.onlyInLeft().isEmpty()) {
+					message.append("%n\tDependencies only in %s:%n\t\t".formatted(this.groupDeployment.leftName()));
+					message.append(String.join("%n\t\t".formatted(),
+							pomDiff.onlyInLeft().stream().map(this::toString).toList()));
+				}
 			}
 			logger.error(message.toString());
 		}
 	}
 
+	private String toString(Dependency dependency) {
+		return "%s:%s:%s - %s (optional %s)".formatted(dependency.getArtifact().getGroupId(),
+				dependency.getArtifact().getArtifactId(), dependency.getArtifact().getVersion(), dependency.getScope(),
+				dependency.isOptional());
+	}
+
 	private List<ModuleDiff> diffModules(ThrowingFunction<Module, ModuleDiff> moduleDiff) throws IOException {
-		List<Path> leftModules = PathUtils.listDirectoriesIn(this.deployment.leftDirectory());
-		logger.debug("Found '%s' modules for %s in '%s'".formatted(leftModules.size(), this.deployment.leftName(),
-				this.deployment.leftDirectory()));
-		List<Path> rightModules = PathUtils.listDirectoriesIn(this.deployment.rightDirectory());
-		logger.debug("Found '%s' modules for %s in '%s'".formatted(rightModules.size(), this.deployment.rightName(),
-				this.deployment.rightDirectory()));
+		List<Path> leftModules = PathUtils.listDirectoriesIn(this.groupDeployment.leftDirectory());
+		logger.debug("Found '%s' modules for %s in '%s'".formatted(leftModules.size(), this.groupDeployment.leftName(),
+				this.groupDeployment.leftDirectory()));
+		List<Path> rightModules = PathUtils.listDirectoriesIn(this.groupDeployment.rightDirectory());
+		logger.debug("Found '%s' modules for %s in '%s'".formatted(rightModules.size(),
+				this.groupDeployment.rightName(), this.groupDeployment.rightDirectory()));
 		List<String> processed = new ArrayList<>();
 		List<ModuleDiff> moduleDiffs = new ArrayList<>();
 		for (Path leftModule : leftModules) {
@@ -61,10 +82,10 @@ class DeploymentDiffer {
 			Path rightModule = findWithFileName(rightModules, name);
 			Module module = new Module(name, leftModule, rightModule);
 			if (rightModule == null) {
-				logger.error("%s does not contain module '%s'".formatted(this.deployment.rightName(), name));
+				logger.error("%s does not contain module '%s'".formatted(this.groupDeployment.rightName(), name));
 				moduleDiffs
 					.add(new ModuleDiff(module, PathUtils.toFileNames(PathUtils.listFilesAndDirectoriesIn(leftModule)),
-							Collections.emptyList()));
+							Collections.emptyList(), null));
 			}
 			else {
 				moduleDiffs.add(moduleDiff.apply(module));
@@ -76,7 +97,7 @@ class DeploymentDiffer {
 			.filter(name -> !processed.contains(name))
 			.toList();
 		if (!onlyInRight.isEmpty()) {
-			logger.error("Only in %s: %s".formatted(this.deployment.rightName(), onlyInRight));
+			logger.error("Only in %s: %s".formatted(this.groupDeployment.rightName(), onlyInRight));
 		}
 		return moduleDiffs;
 	}

@@ -19,7 +19,7 @@ class JarDiffer {
 
 	private static final Log logger = LogFactory.getLog(JarDiffer.class);
 
-	private final Deployment deployment;
+	private final GroupDeployment groupDeployment;
 
 	private final Path left;
 
@@ -27,8 +27,8 @@ class JarDiffer {
 
 	private final String classifier;
 
-	JarDiffer(Deployment deployment, Path left, Path right, String classifier) {
-		this.deployment = deployment;
+	JarDiffer(GroupDeployment groupDeployment, Path left, Path right, String classifier) {
+		this.groupDeployment = groupDeployment;
 		this.left = left;
 		this.right = right;
 		this.classifier = classifier;
@@ -41,13 +41,13 @@ class JarDiffer {
 		if (!entriesDiff.hasSameEntries()) {
 			StringBuilder message = new StringBuilder("Mismatch between %s JARs:".formatted(jarType));
 			if (!entriesDiff.onlyInRight().isEmpty()) {
-				message.append("%n\tOnly in %s JAR (%s):%n\t\t".formatted(this.deployment.rightName(),
-						this.deployment.rightDirectory().relativize(this.right)));
+				message.append("%n\tOnly in %s JAR (%s):%n\t\t".formatted(this.groupDeployment.rightName(),
+						this.groupDeployment.rightDirectory().relativize(this.right)));
 				message.append(String.join("%n\t\t".formatted(), entriesDiff.onlyInRight()));
 			}
 			if (!entriesDiff.onlyInLeft().isEmpty()) {
-				message.append("%n\tOnly in %s JAR (%s):%n\t\t".formatted(this.deployment.leftName(),
-						this.deployment.leftDirectory().relativize(this.left)));
+				message.append("%n\tOnly in %s JAR (%s):%n\t\t".formatted(this.groupDeployment.leftName(),
+						this.groupDeployment.leftDirectory().relativize(this.left)));
 				message.append(String.join("%n\t\t".formatted(), entriesDiff.onlyInLeft()));
 			}
 			logger.error(message.toString());
@@ -63,18 +63,18 @@ class JarDiffer {
 				message.append(String.join("%n\t\t".formatted(),
 						manifestDiff.valueMismatches()
 							.stream()
-							.map(valueMismatch -> valueMismatch.toDescription(this.deployment.leftName(),
-									this.deployment.rightName()))
+							.map(valueMismatch -> valueMismatch.toDescription(this.groupDeployment.leftName(),
+									this.groupDeployment.rightName()))
 							.toList()));
 			}
 			if (!manifestDiff.onlyInRight().isEmpty()) {
-				message.append("%n\tOnly in %s manifest (%s):%n\t\t".formatted(this.deployment.rightName(),
-						this.deployment.rightDirectory().relativize(this.right)));
+				message.append("%n\tOnly in %s manifest (%s):%n\t\t".formatted(this.groupDeployment.rightName(),
+						this.groupDeployment.rightDirectory().relativize(this.right)));
 				message.append(String.join("%n\t\t".formatted(), manifestDiff.onlyInRight()));
 			}
 			if (!manifestDiff.onlyInLeft().isEmpty()) {
-				message.append("%n\tOnly in %s manifest (%s):%n\t\t".formatted(this.deployment.leftName(),
-						this.deployment.leftDirectory().relativize(this.left)));
+				message.append("%n\tOnly in %s manifest (%s):%n\t\t".formatted(this.groupDeployment.leftName(),
+						this.groupDeployment.leftDirectory().relativize(this.left)));
 				message.append(String.join("%n\t\t".formatted(), manifestDiff.onlyInLeft()));
 			}
 			logger.error(message.toString());

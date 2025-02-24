@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.eclipse.aether.graph.Dependency;
 
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
@@ -32,12 +33,13 @@ public class Application {
 			Path leftDirectory = Paths.get(options.get(0));
 			Path rightDirectory = Paths.get(options.get(1));
 			String version = options.get(2);
-			Deployment deployment = new Deployment("Maven", leftDirectory, "Gradle", rightDirectory, version)
+			GroupDeployment groupDeployment = new Deployment("Maven", leftDirectory, "Gradle", rightDirectory, version)
 				.registerJarMismatchFilter("", new MainJarMismatchFilter())
 				.registerJarMismatchFilter("javadoc", new JavadocJarMismatchFilter())
 				.setModuleMismatchFilter(new ModuleMismatchFilter())
-				.resolveGroupId(true, "org", "springframework", "ws");
-			new DeploymentDiffer(deployment).diff();
+				.setPomMismatchFilter(new PomMismatchFilter())
+				.resolveGroupId(true, "org.springframework.ws");
+			new DeploymentDiffer(groupDeployment).diff();
 		};
 	}
 
@@ -91,6 +93,23 @@ public class Application {
 					return true;
 				}
 			}
+			return false;
+		}
+
+	}
+
+	static class PomMismatchFilter implements MismatchFilter<Dependency> {
+
+		@Override
+		public boolean ignoreInLeft(Dependency dependency) {
+			if (Boolean.TRUE.equals(dependency.getOptional())) {
+				return true;
+			}
+			return false;
+		}
+
+		@Override
+		public boolean ignoreInRight(Dependency dependency) {
 			return false;
 		}
 

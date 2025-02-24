@@ -6,7 +6,6 @@ plugins {
 }
 
 group = 'net.nicoll'
-version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
@@ -19,8 +18,13 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter'
-	implementation 'org.assertj:assertj-core'
+	implementation "org.springframework.boot:spring-boot-starter"
+	implementation "org.assertj:assertj-core"
+	implementation "org.apache.maven:maven-core:${mavenVersion}"
+	implementation "org.apache.maven:maven-resolver-provider:${mavenVersion}"
+	implementation "org.apache.maven.resolver:maven-resolver-connector-basic:${mavenResolverVersion}"
+	implementation "org.apache.maven.resolver:maven-resolver-transport-http:${mavenResolverVersion}"
+
 }
 
 tasks.named('test') {

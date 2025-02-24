@@ -6,11 +6,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.aether.graph.Dependency;
+
 record Deployment(String leftName, Path leftDirectory, String rightName, Path rightDirectory, String version,
-		Map<String, MismatchFilter<String>> jarMismatchFilters, MismatchFilter<String> moduleMismatchFilter) {
+		Map<String, MismatchFilter<String>> jarMismatchFilters, MismatchFilter<String> moduleMismatchFilter,
+		MismatchFilter<Dependency> pomMismatchFilter) {
 
 	Deployment(String leftName, Path leftDirectory, String rightName, Path rightDirectory, String version) {
-		this(leftName, leftDirectory, rightName, rightDirectory, version, new HashMap<>(), MismatchFilter.noop());
+		this(leftName, leftDirectory, rightName, rightDirectory, version, new HashMap<>(), MismatchFilter.noop(),
+				MismatchFilter.noop());
 	}
 
 	MismatchFilter<String> jarMismatchFilter(String classifier) {
@@ -22,15 +26,21 @@ record Deployment(String leftName, Path leftDirectory, String rightName, Path ri
 		HashMap<String, MismatchFilter<String>> map = new HashMap<>(this.jarMismatchFilters);
 		map.put(classifier, filter);
 		return new Deployment(this.leftName, this.leftDirectory, this.rightName, this.rightDirectory, this.version, map,
-				this.moduleMismatchFilter);
+				this.moduleMismatchFilter, this.pomMismatchFilter);
 	}
 
 	Deployment setModuleMismatchFilter(MismatchFilter<String> filter) {
 		return new Deployment(this.leftName, this.leftDirectory, this.rightName, this.rightDirectory, this.version,
-				this.jarMismatchFilters, filter);
+				this.jarMismatchFilters, filter, this.pomMismatchFilter);
 	}
 
-	Deployment resolveGroupId(boolean unique, String... parts) throws IOException {
+	Deployment setPomMismatchFilter(MismatchFilter<Dependency> filter) {
+		return new Deployment(this.leftName, this.leftDirectory, this.rightName, this.rightDirectory, this.version,
+				this.jarMismatchFilters, this.moduleMismatchFilter, filter);
+	}
+
+	GroupDeployment resolveGroupId(boolean unique, String groupId) throws IOException {
+		String[] parts = groupId.split("\\.");
 		Path targetLeft = this.leftDirectory;
 		for (String part : parts) {
 			targetLeft = resolveDirectory(unique, targetLeft, part);
@@ -39,8 +49,7 @@ record Deployment(String leftName, Path leftDirectory, String rightName, Path ri
 		for (String part : parts) {
 			targetRight = resolveDirectory(unique, targetRight, part);
 		}
-		return new Deployment(this.leftName, targetLeft, this.rightName, targetRight, this.version,
-				this.jarMismatchFilters, this.moduleMismatchFilter);
+		return new GroupDeployment(this, targetLeft, targetRight, groupId);
 	}
 
 	private static Path resolveDirectory(boolean unique, Path directory, String name) throws IOException {
