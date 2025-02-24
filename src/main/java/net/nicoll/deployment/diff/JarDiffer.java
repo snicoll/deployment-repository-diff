@@ -4,16 +4,12 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.jar.Manifest;
 
 import net.nicoll.deployment.diff.DiffUtils.Diff;
+import net.nicoll.deployment.diff.JarDiffUtils.ManifestDiff;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -59,12 +55,17 @@ class JarDiffer {
 		else {
 			logger.debug("Identical entries for %s JARs".formatted(jarType));
 		}
-		ManifestDiff manifestDiff = diffManifest();
+		ManifestDiff manifestDiff = JarDiffUtils.diffManifest(this.left, this.right);
 		if (!manifestDiff.hasSameEntries()) {
 			StringBuilder message = new StringBuilder("Mismatch between manifest of %s JARs:".formatted(jarType));
-			if (!manifestDiff.mismatches().isEmpty()) {
+			if (!manifestDiff.valueMismatches().isEmpty()) {
 				message.append("%n\tValues mismatches:%n\t\t".formatted());
-				message.append(String.join("%n\t\t".formatted(), manifestDiff.mismatches()));
+				message.append(String.join("%n\t\t".formatted(),
+						manifestDiff.valueMismatches()
+							.stream()
+							.map(valueMismatch -> valueMismatch.toDescription(this.deployment.leftName(),
+									this.deployment.rightName()))
+							.toList()));
 			}
 			if (!manifestDiff.onlyInRight().isEmpty()) {
 				message.append("%n\tOnly in %s manifest (%s):%n\t\t".formatted(this.deployment.rightName(),
@@ -83,34 +84,6 @@ class JarDiffer {
 		}
 	}
 
-	private ManifestDiff diffManifest() throws IOException {
-		Manifest leftManifest = JarUtils.readManifest(this.left);
-		Manifest rightManifest = JarUtils.readManifest(this.right);
-		Map<Object, Object> leftEntries = new HashMap<>(leftManifest.getMainAttributes());
-		Map<Object, Object> rightEntries = new HashMap<>(rightManifest.getMainAttributes());
-		List<String> onlyInLeft = new ArrayList<>();
-		List<String> mismatches = new ArrayList<>();
-		Iterator<Entry<Object, Object>> it = leftEntries.entrySet().iterator();
-		while (it.hasNext()) {
-			Map.Entry<Object, Object> entry = it.next();
-			Object key = entry.getKey();
-			Object value = rightEntries.get(key);
-			if (value == null) {
-				onlyInLeft.add(key.toString());
-			}
-			else {
-				if (!value.equals(entry.getValue())) {
-					mismatches.add("Value mismatch for '%s': '%s' (%s) vs. '%s' (%s)".formatted(key, entry.getValue(),
-							this.deployment.leftName(), value, this.deployment.rightName()));
-				}
-				it.remove();
-				rightEntries.remove(key);
-			}
-		}
-		return new ManifestDiff(onlyInLeft, rightEntries.keySet().stream().map(Object::toString).toList(), mismatches);
-
-	}
-
 	private static List<String> entries(Path file) throws IOException {
 		assertThat(file).exists().isRegularFile();
 		List<String> names = new ArrayList<>();
@@ -122,13 +95,6 @@ class JarDiffer {
 			}
 		}
 		return names;
-	}
-
-	record ManifestDiff(List<String> onlyInLeft, List<String> onlyInRight, List<String> mismatches) {
-
-		public boolean hasSameEntries() {
-			return onlyInLeft.isEmpty() && onlyInRight.isEmpty() && mismatches.isEmpty();
-		}
 	}
 
 }
