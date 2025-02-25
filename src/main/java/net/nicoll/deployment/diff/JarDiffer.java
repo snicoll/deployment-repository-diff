@@ -39,18 +39,11 @@ class JarDiffer {
 		logger.debug("Checking %s JARs".formatted(jarType));
 		Diff<String> entriesDiff = DiffUtils.diff(entries(this.left), entries(this.right), entriesFilter);
 		if (!entriesDiff.hasSameEntries()) {
-			StringBuilder message = new StringBuilder("Mismatch between %s JARs:".formatted(jarType));
-			if (!entriesDiff.onlyInRight().isEmpty()) {
-				message.append("%n\tOnly in %s JAR (%s):%n\t\t".formatted(this.groupDeployment.rightName(),
-						this.groupDeployment.rightDirectory().relativize(this.right)));
-				message.append(String.join("%n\t\t".formatted(), entriesDiff.onlyInRight()));
-			}
-			if (!entriesDiff.onlyInLeft().isEmpty()) {
-				message.append("%n\tOnly in %s JAR (%s):%n\t\t".formatted(this.groupDeployment.leftName(),
-						this.groupDeployment.leftDirectory().relativize(this.left)));
-				message.append(String.join("%n\t\t".formatted(), entriesDiff.onlyInLeft()));
-			}
-			logger.error(message.toString());
+			logger.error(entriesDiff.diffDescription("Mismatch between %s JARs".formatted(jarType),
+					() -> "Only in %s JAR (%s)".formatted(this.groupDeployment.leftName(),
+							this.groupDeployment.leftDirectory().relativize(this.left)),
+					() -> "Only in %s JAR (%s)".formatted(this.groupDeployment.leftName(),
+							this.groupDeployment.leftDirectory().relativize(this.left))));
 		}
 		else {
 			logger.debug("Identical entries for %s JARs".formatted(jarType));
