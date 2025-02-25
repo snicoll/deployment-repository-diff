@@ -6,9 +6,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
-import org.eclipse.aether.artifact.Artifact;
-import org.eclipse.aether.graph.Dependency;
+import org.apache.maven.model.Dependency;
 
 import org.springframework.util.FileSystemUtils;
 
@@ -35,42 +35,46 @@ class PomDiffer {
 		List<Dependency> right = resolveDependencies(this.groupDeployment.rightRoot(), artifactId);
 		left = new ArrayList<>(left);
 		right = new ArrayList<>(right);
+		List<PomMismatch> pomMismatches = new ArrayList<>();
 		List<Dependency> onlyInLeft = new ArrayList<>();
 		for (Dependency dependency : left) {
 			Dependency matchingDependency = foundIn(right, dependency);
 			if (matchingDependency != null) {
 				right.remove(matchingDependency);
+				if (!isSimilarDependency(dependency, matchingDependency)) {
+					pomMismatches.add(new PomMismatch(dependency, matchingDependency));
+				}
 			}
 			else if (!filter.ignoreInLeft(dependency)) {
 				onlyInLeft.add(dependency);
 			}
 		}
 		List<Dependency> onlyInRight = right.stream().filter(key -> !filter.ignoreInRight(key)).toList();
-		return new PomDiff(onlyInLeft, onlyInRight);
+		return new PomDiff(onlyInLeft, onlyInRight, pomMismatches);
 	}
 
 	private Dependency foundIn(List<Dependency> dependencies, Dependency target) {
 		for (Dependency dependency : dependencies) {
-			if (isSimilarDependency(target, dependency)) {
+			if (isSameArtifact(target, dependency)) {
 				return dependency;
 			}
 		}
 		return null;
 	}
 
-	private boolean isSimilarDependency(Dependency left, Dependency right) {
-		if (!isSimilarArtifact(left.getArtifact(), right.getArtifact())) {
-			return false;
-		}
-		return Objects.equals(left.getScope(), right.getScope())
-				&& Objects.equals(left.isOptional(), right.isOptional());
+	private boolean isSameArtifact(Dependency left, Dependency right) {
+		return Objects.equals(left.getGroupId(), right.getGroupId())
+				&& Objects.equals(left.getArtifactId(), right.getArtifactId())
+				&& Objects.equals(left.getClassifier(), right.getClassifier());
 	}
 
-	private boolean isSimilarArtifact(Artifact left, Artifact that) {
-		return Objects.equals(left.getArtifactId(), that.getArtifactId())
-				&& Objects.equals(left.getGroupId(), that.getGroupId())
-				&& Objects.equals(left.getVersion(), that.getVersion())
-				&& Objects.equals(left.getClassifier(), that.getClassifier());
+	private boolean isSimilarDependency(Dependency left, Dependency right) {
+		return Objects.equals(left.getArtifactId(), right.getArtifactId())
+				&& Objects.equals(left.getGroupId(), right.getGroupId())
+				&& Objects.equals(left.getVersion(), right.getVersion())
+				&& Objects.equals(left.getClassifier(), right.getClassifier())
+				&& Objects.equals(left.getScope(), right.getScope())
+				&& Objects.equals(left.isOptional(), right.isOptional());
 	}
 
 	private List<Dependency> resolveDependencies(Path localRepository, String artifact) throws IOException {
@@ -86,10 +90,23 @@ class PomDiffer {
 		return tempDirectory;
 	}
 
-	record PomDiff(List<Dependency> onlyInLeft, List<Dependency> onlyInRight) {
+	record PomDiff(List<Dependency> onlyInLeft, List<Dependency> onlyInRight, List<PomMismatch> pomMismatches) {
 
 		public boolean hasSameEntries() {
 			return this.onlyInLeft.isEmpty() && this.onlyInRight.isEmpty();
+		}
+
+	}
+
+	record PomMismatch(Dependency left, Dependency right) {
+
+		String toDescription(String leftName, String rightValue) {
+			String header = "%s:%s".formatted(this.left.getGroupId(), this.left.getArtifactId());
+			Function<Dependency, String> descriptionFactory = dependency -> "%s:%s:%s %s %s".formatted(
+					dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion(), dependency.getScope(),
+					dependency.isOptional() ? "(optional)" : "");
+			return "'%s': '%s' (%s) vs. '%s' (%s)".formatted(header, descriptionFactory.apply(this.left), leftName,
+					descriptionFactory.apply(this.right), rightValue);
 		}
 
 	}

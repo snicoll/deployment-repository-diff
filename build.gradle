@@ -20,11 +20,7 @@ repositories {
 dependencies {
 	implementation "org.springframework.boot:spring-boot-starter"
 	implementation "org.assertj:assertj-core"
-	implementation "org.apache.maven:maven-core:${mavenVersion}"
-	implementation "org.apache.maven:maven-resolver-provider:${mavenVersion}"
-	implementation "org.apache.maven.resolver:maven-resolver-connector-basic:${mavenResolverVersion}"
-	implementation "org.apache.maven.resolver:maven-resolver-transport-http:${mavenResolverVersion}"
-
+	implementation "org.maxxq.maven:maxxq-maven:1.3.2"
 }
 
 tasks.named('test') {

@@ -3,13 +3,12 @@ package net.nicoll.deployment.diff;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import net.nicoll.deployment.diff.PomDiffer.PomDiff;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.aether.graph.Dependency;
+import org.apache.maven.model.Dependency;
 
 import org.springframework.util.function.ThrowingFunction;
 
@@ -47,6 +46,15 @@ class DeploymentDiffer {
 			}
 			PomDiff pomDiff = moduleDiff.pomDiff();
 			if (pomDiff != null && !pomDiff.hasSameEntries()) {
+				if (!pomDiff.pomMismatches().isEmpty()) {
+					message.append("%n\tDependencies mismatches:%n\t\t".formatted());
+					message.append(String.join("%n\t\t".formatted(),
+							pomDiff.pomMismatches()
+								.stream()
+								.map(valueMismatch -> valueMismatch.toDescription(this.groupDeployment.leftName(),
+										this.groupDeployment.rightName()))
+								.toList()));
+				}
 				if (!pomDiff.onlyInRight().isEmpty()) {
 					message.append("%n\tDependencies only in %s:%n\t\t".formatted(this.groupDeployment.rightName()));
 					message.append(String.join("%n\t\t".formatted(),
@@ -63,9 +71,8 @@ class DeploymentDiffer {
 	}
 
 	private String toString(Dependency dependency) {
-		return "%s:%s:%s - %s (optional %s)".formatted(dependency.getArtifact().getGroupId(),
-				dependency.getArtifact().getArtifactId(), dependency.getArtifact().getVersion(), dependency.getScope(),
-				dependency.isOptional());
+		return "%s:%s:%s - %s %s".formatted(dependency.getGroupId(), dependency.getArtifactId(),
+				dependency.getVersion(), dependency.getScope(), dependency.isOptional() ? "(optional)" : "");
 	}
 
 	private List<ModuleDiff> diffModules(ThrowingFunction<Module, ModuleDiff> moduleDiff) throws IOException {

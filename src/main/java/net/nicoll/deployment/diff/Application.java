@@ -7,7 +7,7 @@ import java.util.List;
 import net.nicoll.deployment.diff.DiffUtils.Diff;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.aether.graph.Dependency;
+import org.apache.maven.model.Dependency;
 
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
@@ -148,10 +148,7 @@ public class Application {
 
 		@Override
 		public boolean ignoreInLeft(Dependency dependency) {
-			if (Boolean.TRUE.equals(dependency.getOptional())) {
-				return true;
-			}
-			return false;
+			return Boolean.parseBoolean(dependency.getOptional());
 		}
 
 		@Override

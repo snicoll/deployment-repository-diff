@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.aether.graph.Dependency;
+import org.apache.maven.model.Dependency;
 
 record Deployment(String leftName, Path leftDirectory, String rightName, Path rightDirectory, String version,
 		Map<String, MismatchFilter<String>> jarMismatchFilters, MismatchFilter<String> moduleMismatchFilter,
