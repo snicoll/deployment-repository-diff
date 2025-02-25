@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import net.nicoll.deployment.diff.DiffUtils.Diff;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.aether.graph.Dependency;
@@ -40,6 +41,24 @@ public class Application {
 				.setPomMismatchFilter(new PomMismatchFilter())
 				.resolveGroupId(true, "org.springframework.ws");
 			new DeploymentDiffer(groupDeployment).diff();
+
+			logger.info("Handling special case, docs to spring-ws-docs");
+			Path leftZip = groupDeployment.leftDirectory()
+				.resolve("spring-ws")
+				.resolve(groupDeployment.version())
+				.resolve("spring-ws-%s-docs.zip".formatted(groupDeployment.version()));
+			Path rightZip = groupDeployment.rightDirectory()
+				.resolve("spring-ws-docs")
+				.resolve(groupDeployment.version())
+				.resolve("spring-ws-docs-%s.zip".formatted(groupDeployment.version()));
+			Diff<String> diff = new ZipDiffer(leftZip, rightZip).diff(MismatchFilter.noop());
+			if (!diff.hasSameEntries()) {
+				logger.error(diff.diffDescription("Mismatch between docs distribution",
+						() -> "Only in %s docs (%s)".formatted(groupDeployment.leftName(),
+								groupDeployment.leftDirectory().relativize(leftZip)),
+						() -> "Only in %s docs (%s)".formatted(groupDeployment.rightName(),
+								groupDeployment.rightDirectory().relativize(rightZip))));
+			}
 		};
 	}
 
