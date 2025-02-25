@@ -83,9 +83,6 @@ class DeploymentDiffer {
 			Module module = new Module(name, leftModule, rightModule);
 			if (rightModule == null) {
 				logger.error("%s does not contain module '%s'".formatted(this.groupDeployment.rightName(), name));
-				moduleDiffs
-					.add(new ModuleDiff(module, PathUtils.toFileNames(PathUtils.listFilesAndDirectoriesIn(leftModule)),
-							Collections.emptyList(), null));
 			}
 			else {
 				moduleDiffs.add(moduleDiff.apply(module));

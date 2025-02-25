@@ -37,6 +37,7 @@ public class Application {
 			GroupDeployment groupDeployment = new Deployment("Maven", leftDirectory, "Gradle", rightDirectory, version)
 				.registerJarMismatchFilter("", new MainJarMismatchFilter())
 				.registerJarMismatchFilter("javadoc", new JavadocJarMismatchFilter())
+				.registerJarMismatchFilter("sources", new SourcesJarMismatchFilter())
 				.setModuleMismatchFilter(new ModuleMismatchFilter())
 				.setPomMismatchFilter(new PomMismatchFilter())
 				.resolveGroupId(true, "org.springframework.ws");
@@ -62,10 +63,23 @@ public class Application {
 		};
 	}
 
-	static class MainJarMismatchFilter implements MismatchFilter<String> {
+	static abstract class JarMismatchFilter implements MismatchFilter<String> {
 
 		@Override
 		public boolean ignoreInLeft(String key) {
+			return key.startsWith("META-INF/maven");
+		}
+
+	}
+
+	static class MainJarMismatchFilter extends JarMismatchFilter {
+
+		@Override
+		public boolean ignoreInLeft(String key) {
+			boolean ignore = super.ignoreInLeft(key);
+			if (ignore) {
+				return true;
+			}
 			return key.endsWith("package-info.class");
 		}
 
@@ -76,16 +90,29 @@ public class Application {
 
 	}
 
-	static class JavadocJarMismatchFilter implements MismatchFilter<String> {
+	static class JavadocJarMismatchFilter extends JarMismatchFilter {
 
 		@Override
 		public boolean ignoreInLeft(String key) {
+			boolean ignore = super.ignoreInLeft(key);
+			if (ignore) {
+				return true;
+			}
 			boolean classOrPackageUse = key.contains("/class-use/") || key.endsWith("/package-use.html");
 			if (classOrPackageUse) {
 				logger.trace("Ignoring '%s".formatted(key));
 			}
 			return classOrPackageUse;
 		}
+
+		@Override
+		public boolean ignoreInRight(String key) {
+			return false;
+		}
+
+	}
+
+	static class SourcesJarMismatchFilter extends JarMismatchFilter {
 
 		@Override
 		public boolean ignoreInRight(String key) {
