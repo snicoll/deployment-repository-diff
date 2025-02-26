@@ -100,13 +100,26 @@ class PomDiffer {
 
 	record PomMismatch(Dependency left, Dependency right) {
 
-		String toDescription(String leftName, String rightValue) {
+		String toDescription() {
 			String header = "%s:%s".formatted(this.left.getGroupId(), this.left.getArtifactId());
 			Function<Dependency, String> descriptionFactory = dependency -> "%s:%s:%s %s %s".formatted(
 					dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion(), dependency.getScope(),
 					dependency.isOptional() ? "(optional)" : "");
-			return "'%s': '%s' (%s) vs. '%s' (%s)".formatted(header, descriptionFactory.apply(this.left), leftName,
-					descriptionFactory.apply(this.right), rightValue);
+			return "'%s': %s".formatted(header, String.join(" and ", mismatches()));
+		}
+
+		private List<String> mismatches() {
+			List<String> mismatches = new ArrayList<>();
+			if (!this.left.getVersion().equals(this.right.getVersion())) {
+				mismatches.add("version (%s vs. %s)".formatted(this.left.getVersion(), this.right.getVersion()));
+			}
+			if (!this.left.getScope().equals(this.right.getScope())) {
+				mismatches.add("scope (%s vs. %s)".formatted(this.left.getScope(), this.right.getScope()));
+			}
+			if (this.left.isOptional() != this.right.isOptional()){
+				mismatches.add("optional (%s vs. %s)".formatted(this.left.isOptional(), this.right.isOptional()));
+			}
+			return mismatches;
 		}
 
 	}

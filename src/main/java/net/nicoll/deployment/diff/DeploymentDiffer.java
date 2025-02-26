@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.nicoll.deployment.diff.PomDiffer.PomDiff;
+import net.nicoll.deployment.diff.PomDiffer.PomMismatch;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.maven.model.Dependency;
@@ -51,8 +52,7 @@ class DeploymentDiffer {
 					message.append(String.join("%n\t\t".formatted(),
 							pomDiff.pomMismatches()
 								.stream()
-								.map(valueMismatch -> valueMismatch.toDescription(this.groupDeployment.leftName(),
-										this.groupDeployment.rightName()))
+								.map(PomMismatch::toDescription)
 								.toList()));
 				}
 				if (!pomDiff.onlyInRight().isEmpty()) {
